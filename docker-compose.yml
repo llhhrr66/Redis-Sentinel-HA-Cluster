@@ -1,0 +1,113 @@
+services:
+  redis-master:
+    container_name: redis-master
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./master/redis.conf:/usr/local/etc/redis/redis.conf
+      - redis-master-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - redis-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-slave1:
+    container_name: redis-slave1
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./slave1/redis.conf:/usr/local/etc/redis/redis.conf
+      - redis-slave1-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-net
+
+  redis-slave2:
+    container_name: redis-slave2
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - ./slave2/redis.conf:/usr/local/etc/redis/redis.conf
+      - redis-slave2-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-net
+
+  sentinel1:
+    container_name: sentinel1
+    image: redis:7-alpine
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./sentinel1/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_started
+      redis-slave2:
+        condition: service_started
+    networks:
+      - redis-net
+    restart: on-failure
+
+  sentinel2:
+    container_name: sentinel2
+    image: redis:7-alpine
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./sentinel2/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_started
+      redis-slave2:
+        condition: service_started
+    networks:
+      - redis-net
+    restart: on-failure
+
+  sentinel3:
+    container_name: sentinel3
+    image: redis:7-alpine
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./sentinel3/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave1:
+        condition: service_started
+      redis-slave2:
+        condition: service_started
+    networks:
+      - redis-net
+    restart: on-failure
+
+volumes:
+  redis-master-data:
+  redis-slave1-data:
+  redis-slave2-data:
+
+networks:
+  redis-net:
+    driver: bridge
